@@ -24,8 +24,8 @@ from typing import Annotated, Dict, Optional
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from requests.auth import HTTPDigestAuth  # type: ignore
-from sqlalchemy import DateTime, Integer, String, Text, create_engine, Column, ForeignKey
+from httpx import DigestAuth
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, Date, create_engine, Column, ForeignKey, text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # ------------------------------------------------------------------
@@ -66,6 +66,36 @@ class EventoAcesso(Base):
     motivo = Column(Text, nullable=True)
 
 
+class Pessoa(Base):
+    __tablename__ = "pessoa"
+
+    id = Column(
+        String,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    tipo = Column(String, nullable=False)
+    nome = Column(String, nullable=False)
+    foto_url = Column(Text, nullable=True)
+    documento = Column(String, nullable=True)
+    depto = Column(String, nullable=True)
+    cargo = Column(String, nullable=True)
+    hik_user_id = Column(Integer, unique=True, nullable=True)
+    validade_fim = Column(Date, nullable=True)
+    ativo = Column(Boolean, server_default=text("true"))
+    criado_em = Column(DateTime, server_default=text("NOW()"))
+
+
+class TagRFID(Base):
+    __tablename__ = "tag_rfid"
+
+    uid = Column(Integer, primary_key=True)
+    pessoa_id = Column(String, ForeignKey("pessoa.id"), nullable=True)
+    apelido = Column(String, nullable=True)
+    bloqueada = Column(Boolean, server_default=text("false"))
+    criado_em = Column(DateTime, server_default=text("NOW()"))
+
+
 # ------------------------------------------------------------------
 # FastAPI
 # ------------------------------------------------------------------
@@ -90,7 +120,7 @@ class DoorRequest(BaseModel):
 @app.post("/door/open", status_code=204)
 async def door_open(req: DoorRequest, db: Annotated[Session, Depends(get_session)]):
     """Trigger remote open via ISAPI and log the operation."""
-    auth = HTTPDigestAuth(HIK_USER, HIK_PASS)
+    auth = DigestAuth(HIK_USER, HIK_PASS)
     url = f"http://{HIK_IP}:{HIK_PORT}/ISAPI/AccessControl/RemoteControl/door/1"
     async with httpx.AsyncClient(auth=auth, verify=HIK_VERIFY_TLS, timeout=5) as cli:
         r = await cli.put(url, content=b"open")
@@ -102,6 +132,74 @@ async def door_open(req: DoorRequest, db: Annotated[Session, Depends(get_session
     db.add(evt)
     db.commit()
     return None
+
+
+# ------------------------------------------------------------------
+# Pessoa endpoints
+# ------------------------------------------------------------------
+class PessoaCreate(BaseModel):
+    tipo: str
+    nome: str
+    foto_url: Optional[str] = None
+    documento: Optional[str] = None
+    depto: Optional[str] = None
+    cargo: Optional[str] = None
+    hik_user_id: Optional[int] = None
+    validade_fim: Optional[datetime] = None
+    ativo: bool = True
+
+
+class PessoaOut(PessoaCreate):
+    id: str
+    criado_em: datetime
+
+
+@app.post("/pessoa", response_model=PessoaOut, status_code=201)
+def create_pessoa(data: PessoaCreate, db: Annotated[Session, Depends(get_session)]):
+    pessoa = Pessoa(**data.dict())
+    db.add(pessoa)
+    db.commit()
+    db.refresh(pessoa)
+    return pessoa
+
+
+@app.get("/pessoa/{pid}", response_model=PessoaOut)
+def get_pessoa(pid: str, db: Annotated[Session, Depends(get_session)]):
+    pessoa = db.get(Pessoa, pid)
+    if not pessoa:
+        raise HTTPException(404, "Pessoa not found")
+    return pessoa
+
+
+# ------------------------------------------------------------------
+# Tag RFID endpoints
+# ------------------------------------------------------------------
+class TagCreate(BaseModel):
+    uid: int
+    pessoa_id: Optional[str] = None
+    apelido: Optional[str] = None
+    bloqueada: bool = False
+
+
+class TagOut(TagCreate):
+    criado_em: datetime
+
+
+@app.post("/tag", response_model=TagOut, status_code=201)
+def create_tag(data: TagCreate, db: Annotated[Session, Depends(get_session)]):
+    tag = TagRFID(**data.dict())
+    db.add(tag)
+    db.commit()
+    db.refresh(tag)
+    return tag
+
+
+@app.get("/tag/{uid}", response_model=TagOut)
+def get_tag(uid: int, db: Annotated[Session, Depends(get_session)]):
+    tag = db.get(TagRFID, uid)
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    return tag
 
 
 # ------------------------------------------------------------------
@@ -139,7 +237,7 @@ async def pull_alertstream():
     if not PULL_MODE:
         return
 
-    auth = HTTPDigestAuth(HIK_USER, HIK_PASS)
+    auth = DigestAuth(HIK_USER, HIK_PASS)
     boundary = None
     url = f"http://{HIK_IP}:{HIK_PORT}/ISAPI/Event/notification/alertStream"
     while True:

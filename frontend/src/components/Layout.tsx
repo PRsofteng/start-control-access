@@ -1,11 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  Users, 
-  Tag, 
-  Shield, 
-  ClipboardList, 
+  LayoutDashboard,
+  Users,
+  Shield,
+  ClipboardList,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,15 +45,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <Users className="mr-3 h-5 w-5" />
             Funcionários
-          </NavLink>
-          <NavLink 
-            to="/tags" 
-            className={({ isActive }) => 
-              `flex items-center py-3 px-6 ${isActive ? 'bg-blue-50 text-blue-700 border-r-4 border-blue-700' : 'text-gray-600 hover:bg-gray-100'}`
-            }
-          >
-            <Tag className="mr-3 h-5 w-5" />
-            Tags RFID
           </NavLink>
           <NavLink 
             to="/access" 

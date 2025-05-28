@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAccessControl } from '../contexts/AccessControlContext';
-import { PlusCircle, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { PlusCircle, Edit, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Pessoa } from '../services/api';
 
@@ -10,6 +10,7 @@ const EmployeeRegistration: React.FC = () => {
   const [formData, setFormData] = useState<Omit<Pessoa, 'id' | 'criado_em'>>({
     tipo: 'funcionario',
     nome: '',
+    foto_url: '',
     ativo: true,
     validade_fim: undefined
   });
@@ -46,6 +47,7 @@ const EmployeeRegistration: React.FC = () => {
       setFormData({
         tipo: 'funcionario',
         nome: '',
+        foto_url: '',
         ativo: true,
         validade_fim: undefined
       });
@@ -125,6 +127,27 @@ const EmployeeRegistration: React.FC = () => {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
+                Foto
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData(prev => ({ ...prev, foto_url: reader.result as string }));
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
                 Data de Validade
               </label>
               <input
@@ -172,6 +195,7 @@ const EmployeeRegistration: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Foto</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validade</th>
@@ -184,6 +208,13 @@ const EmployeeRegistration: React.FC = () => {
                 <tr key={employee.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {employee.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {employee.foto_url ? (
+                      <img src={employee.foto_url} alt={employee.nome} className="h-10 w-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-gray-200" />
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{employee.nome}</div>

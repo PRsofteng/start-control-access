@@ -6,7 +6,6 @@ import Header from './components/Header';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import EmployeeRegistration from './pages/EmployeeRegistration';
-import TagManagement from './pages/TagManagement';
 import AccessControl from './pages/AccessControl';
 import LogSystem from './pages/LogSystem';
 import Almoxarifado from './pages/Almoxarifado';
@@ -38,7 +37,6 @@ const AppContent = () => {
             <Routes>
               <Route path="/\" element={<Dashboard />} />
               <Route path="/employees" element={<EmployeeRegistration />} />
-              <Route path="/tags" element={<TagManagement />} />
               <Route path="/access" element={<AccessControl />} />
               <Route path="/logs" element={<LogSystem />} />
             </Routes>
