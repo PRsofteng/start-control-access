@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { Pessoa, pessoaService, doorService } from '../services/api';
+=======
+import { Pessoa, Tag, pessoaService, tagService, doorService, accessEventService } from '../services/api';
+>>>>>>> origin/main
 import { DoorStatus, AccessEvent } from '../types';
 
 interface AccessControlContextType {
@@ -24,6 +28,7 @@ interface AccessControlContextType {
 
 const AccessControlContext = createContext<AccessControlContextType | undefined>(undefined);
 
+<<<<<<< HEAD
 // Mock data for demonstration
 const mockEmployees: Pessoa[] = [
   {
@@ -77,6 +82,8 @@ const generateMockAccessEvents = (): AccessEvent[] => {
   
   return events;
 };
+=======
+>>>>>>> origin/main
 
 export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [employees, setEmployees] = useState<Pessoa[]>([]);
@@ -100,23 +107,49 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const loadEmployees = async () => {
-    // In a real app, you would fetch from API
-    setEmployees(mockEmployees);
-    return Promise.resolve();
+    setIsLoading(true);
+    try {
+      const data = await pessoaService.listar();
+      setEmployees(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading employees:', err);
+      setError('Failed to load employees');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+<<<<<<< HEAD
+=======
+  const loadTags = async () => {
+    try {
+      const data = await tagService.listar();
+      setRfidTags(data);
+    } catch (err) {
+      console.error('Error loading tags:', err);
+      setError('Failed to load tags');
+    }
+  };
+
+>>>>>>> origin/main
   const loadAccessEvents = async () => {
-    // In a real app, you would fetch from API
-    const events = generateMockAccessEvents();
-    setAccessEvents(events);
-    
-    // Calculate current people count
-    const peopleInside = events.filter(
-      event => event.status === 'allowed' && !event.exitTime
-    ).length;
-    setCurrentPeopleCount(peopleInside);
-    
-    return Promise.resolve();
+    setIsLoading(true);
+    try {
+      const events = await accessEventService.listar();
+      setAccessEvents(events);
+
+      const peopleInside = events.filter(
+        event => event.status === 'allowed' && !event.exitTime
+      ).length;
+      setCurrentPeopleCount(peopleInside);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading access events:', err);
+      setError('Failed to load access events');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addEmployee = async (employee: Omit<Pessoa, 'id' | 'criado_em'>) => {
