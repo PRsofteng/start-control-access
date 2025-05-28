@@ -1,9 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-<<<<<<< HEAD
 import { Pessoa, pessoaService, doorService } from '../services/api';
-=======
-import { Pessoa, Tag, pessoaService, tagService, doorService, accessEventService } from '../services/api';
->>>>>>> origin/main
 import { DoorStatus, AccessEvent } from '../types';
 
 interface AccessControlContextType {
@@ -28,7 +24,6 @@ interface AccessControlContextType {
 
 const AccessControlContext = createContext<AccessControlContextType | undefined>(undefined);
 
-<<<<<<< HEAD
 // Mock data for demonstration
 const mockEmployees: Pessoa[] = [
   {
@@ -82,8 +77,6 @@ const generateMockAccessEvents = (): AccessEvent[] => {
   
   return events;
 };
-=======
->>>>>>> origin/main
 
 export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [employees, setEmployees] = useState<Pessoa[]>([]);
@@ -120,19 +113,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-<<<<<<< HEAD
-=======
-  const loadTags = async () => {
-    try {
-      const data = await tagService.listar();
-      setRfidTags(data);
-    } catch (err) {
-      console.error('Error loading tags:', err);
-      setError('Failed to load tags');
-    }
-  };
-
->>>>>>> origin/main
   const loadAccessEvents = async () => {
     setIsLoading(true);
     try {
