@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Pessoa, Tag, pessoaService, tagService, doorService } from '../services/api';
+import { Pessoa, Tag, pessoaService, tagService, doorService, accessEventService } from '../services/api';
 import { DoorStatus, AccessEvent } from '../types';
 
 interface AccessControlContextType {
@@ -30,62 +30,6 @@ interface AccessControlContextType {
 
 const AccessControlContext = createContext<AccessControlContextType | undefined>(undefined);
 
-// Mock data for demonstration
-const mockEmployees: Pessoa[] = [
-  { 
-    id: '1', 
-    tipo: 'funcionario',
-    nome: 'João Silva',
-    ativo: true,
-    criado_em: new Date().toISOString()
-  },
-  { 
-    id: '2', 
-    tipo: 'funcionario',
-    nome: 'Maria Souza',
-    ativo: true,
-    criado_em: new Date().toISOString()
-  },
-  { 
-    id: '3', 
-    tipo: 'visitante',
-    nome: 'Carlos Oliveira',
-    ativo: false,
-    validade_fim: new Date().toISOString(),
-    criado_em: new Date().toISOString()
-  }
-];
-
-const mockRfidTags: Tag[] = [
-  { uid: 1234567890, pessoa_id: '1', bloqueada: false, criado_em: new Date().toISOString() },
-  { uid: 987654321, pessoa_id: '2', bloqueada: false, criado_em: new Date().toISOString() },
-  { uid: 567890123, pessoa_id: undefined, bloqueada: false, criado_em: new Date().toISOString() }
-];
-
-// Helper function to generate mock access events
-const generateMockAccessEvents = (): AccessEvent[] => {
-  const events: AccessEvent[] = [];
-  const now = new Date();
-  
-  for (let i = 0; i < 20; i++) {
-    const date = new Date(now.getTime() - i * 3600000);
-    const employee = mockEmployees[Math.floor(Math.random() * mockEmployees.length)];
-    const tag = mockRfidTags.find(tag => tag.pessoa_id === employee.id) || mockRfidTags[0];
-    
-    events.push({
-      id: `event-${i}`,
-      employeeName: employee.nome,
-      employeeId: employee.id,
-      tagUid: tag.uid.toString(),
-      entryTime: new Date(date.getTime() - 3600000).toISOString(),
-      exitTime: i % 3 === 0 ? null : date.toISOString(),
-      status: i % 5 === 0 ? 'denied' : 'allowed',
-      reason: i % 5 === 0 ? 'Unauthorized access attempt' : null
-    });
-  }
-  
-  return events;
-};
 
 export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [employees, setEmployees] = useState<Pessoa[]>([]);
@@ -111,29 +55,46 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const loadEmployees = async () => {
-    // In a real app, you would fetch from API
-    setEmployees(mockEmployees);
-    return Promise.resolve();
+    setIsLoading(true);
+    try {
+      const data = await pessoaService.listar();
+      setEmployees(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading employees:', err);
+      setError('Failed to load employees');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadTags = async () => {
-    // In a real app, you would fetch from API
-    setRfidTags(mockRfidTags);
-    return Promise.resolve();
+    try {
+      const data = await tagService.listar();
+      setRfidTags(data);
+    } catch (err) {
+      console.error('Error loading tags:', err);
+      setError('Failed to load tags');
+    }
   };
 
   const loadAccessEvents = async () => {
-    // In a real app, you would fetch from API
-    const events = generateMockAccessEvents();
-    setAccessEvents(events);
-    
-    // Calculate current people count
-    const peopleInside = events.filter(
-      event => event.status === 'allowed' && !event.exitTime
-    ).length;
-    setCurrentPeopleCount(peopleInside);
-    
-    return Promise.resolve();
+    setIsLoading(true);
+    try {
+      const events = await accessEventService.listar();
+      setAccessEvents(events);
+
+      const peopleInside = events.filter(
+        event => event.status === 'allowed' && !event.exitTime
+      ).length;
+      setCurrentPeopleCount(peopleInside);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading access events:', err);
+      setError('Failed to load access events');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addEmployee = async (employee: Omit<Pessoa, 'id' | 'criado_em'>) => {

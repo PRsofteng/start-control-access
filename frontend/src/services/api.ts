@@ -21,6 +21,17 @@ export interface Tag {
   criado_em: string;
 }
 
+export interface AccessEvent {
+  id: string;
+  employeeName: string;
+  employeeId: string;
+  tagUid: string;
+  entryTime: string;
+  exitTime: string | null;
+  status: 'allowed' | 'denied';
+  reason: string | null;
+}
+
 export interface VerifyResponse {
   allowed: boolean;
   pessoa_id?: string;
@@ -33,6 +44,10 @@ export interface DoorOpenRequest {
 
 // Serviços de API
 export const pessoaService = {
+  listar: async () => {
+    const response = await api.get<Pessoa[]>('/pessoa');
+    return response.data;
+  },
   criar: async (data: Omit<Pessoa, 'id' | 'criado_em'>) => {
     const response = await api.post<Pessoa>('/pessoa', data);
     return response.data;
@@ -45,6 +60,10 @@ export const pessoaService = {
 };
 
 export const tagService = {
+  listar: async () => {
+    const response = await api.get<Tag[]>('/tag');
+    return response.data;
+  },
   criar: async (data: Omit<Tag, 'criado_em'>) => {
     const response = await api.post<Tag>('/tag', data);
     return response.data;
@@ -64,5 +83,12 @@ export const tagService = {
 export const doorService = {
   open: async (data: DoorOpenRequest = {}) => {
     await api.post('/door/open', data);
+  }
+};
+
+export const accessEventService = {
+  listar: async () => {
+    const response = await api.get<AccessEvent[]>('/access-events');
+    return response.data;
   }
 };
