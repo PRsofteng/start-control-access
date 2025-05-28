@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Pessoa, Tag, pessoaService, tagService, doorService } from '../services/api';
+import { Pessoa, pessoaService, doorService } from '../services/api';
 import { DoorStatus, AccessEvent } from '../types';
 
 interface AccessControlContextType {
   employees: Pessoa[];
-  rfidTags: Tag[];
   accessEvents: AccessEvent[];
   doorStatus: DoorStatus;
   currentPeopleCount: number;
@@ -15,16 +14,11 @@ interface AccessControlContextType {
   addEmployee: (employee: Omit<Pessoa, 'id' | 'criado_em'>) => Promise<void>;
   updateEmployee: (id: string, employee: Partial<Pessoa>) => Promise<void>;
   
-  // RFID Tag functions
-  assignTag: (tagUid: string, employeeId: string) => Promise<void>;
-  unassignTag: (tagUid: string) => Promise<void>;
-  
   // Access Control functions
   openDoor: () => Promise<void>;
-  
+
   // Load functions
   loadEmployees: () => Promise<void>;
-  loadTags: () => Promise<void>;
   loadAccessEvents: () => Promise<void>;
 }
 
@@ -32,34 +26,31 @@ const AccessControlContext = createContext<AccessControlContextType | undefined>
 
 // Mock data for demonstration
 const mockEmployees: Pessoa[] = [
-  { 
-    id: '1', 
+  {
+    id: '1',
     tipo: 'funcionario',
     nome: 'João Silva',
+    foto_url: 'https://picsum.photos/seed/1/64',
     ativo: true,
     criado_em: new Date().toISOString()
   },
-  { 
-    id: '2', 
+  {
+    id: '2',
     tipo: 'funcionario',
     nome: 'Maria Souza',
+    foto_url: 'https://picsum.photos/seed/2/64',
     ativo: true,
     criado_em: new Date().toISOString()
   },
-  { 
-    id: '3', 
+  {
+    id: '3',
     tipo: 'visitante',
     nome: 'Carlos Oliveira',
+    foto_url: 'https://picsum.photos/seed/3/64',
     ativo: false,
     validade_fim: new Date().toISOString(),
     criado_em: new Date().toISOString()
   }
-];
-
-const mockRfidTags: Tag[] = [
-  { uid: 1234567890, pessoa_id: '1', bloqueada: false, criado_em: new Date().toISOString() },
-  { uid: 987654321, pessoa_id: '2', bloqueada: false, criado_em: new Date().toISOString() },
-  { uid: 567890123, pessoa_id: undefined, bloqueada: false, criado_em: new Date().toISOString() }
 ];
 
 // Helper function to generate mock access events
@@ -70,13 +61,13 @@ const generateMockAccessEvents = (): AccessEvent[] => {
   for (let i = 0; i < 20; i++) {
     const date = new Date(now.getTime() - i * 3600000);
     const employee = mockEmployees[Math.floor(Math.random() * mockEmployees.length)];
-    const tag = mockRfidTags.find(tag => tag.pessoa_id === employee.id) || mockRfidTags[0];
-    
+    const tagUid = 1000 + i;
+
     events.push({
       id: `event-${i}`,
       employeeName: employee.nome,
       employeeId: employee.id,
-      tagUid: tag.uid.toString(),
+      tagUid: String(tagUid),
       entryTime: new Date(date.getTime() - 3600000).toISOString(),
       exitTime: i % 3 === 0 ? null : date.toISOString(),
       status: i % 5 === 0 ? 'denied' : 'allowed',
@@ -89,7 +80,6 @@ const generateMockAccessEvents = (): AccessEvent[] => {
 
 export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [employees, setEmployees] = useState<Pessoa[]>([]);
-  const [rfidTags, setRfidTags] = useState<Tag[]>([]);
   const [accessEvents, setAccessEvents] = useState<AccessEvent[]>([]);
   const [doorStatus, setDoorStatus] = useState<DoorStatus>('closed');
   const [currentPeopleCount, setCurrentPeopleCount] = useState<number>(0);
@@ -100,7 +90,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     // Load initial data
     Promise.all([
       loadEmployees(),
-      loadTags(),
       loadAccessEvents()
     ]).then(() => {
       setIsLoading(false);
@@ -113,12 +102,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
   const loadEmployees = async () => {
     // In a real app, you would fetch from API
     setEmployees(mockEmployees);
-    return Promise.resolve();
-  };
-
-  const loadTags = async () => {
-    // In a real app, you would fetch from API
-    setRfidTags(mockRfidTags);
     return Promise.resolve();
   };
 
@@ -153,43 +136,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     ));
   };
 
-  const assignTag = async (tagUid: string, employeeId: string) => {
-    try {
-      await tagService.criar({
-        uid: parseInt(tagUid),
-        pessoa_id: employeeId,
-        bloqueada: false
-      });
-      
-      setRfidTags(tags => tags.map(tag => 
-        tag.uid === parseInt(tagUid)
-          ? { ...tag, pessoa_id: employeeId } 
-          : tag
-      ));
-    } catch (error) {
-      console.error('Error assigning tag:', error);
-      throw error;
-    }
-  };
-
-  const unassignTag = async (tagUid: string) => {
-    try {
-      await tagService.criar({
-        uid: parseInt(tagUid),
-        pessoa_id: undefined,
-        bloqueada: false
-      });
-      
-      setRfidTags(tags => tags.map(tag => 
-        tag.uid === parseInt(tagUid)
-          ? { ...tag, pessoa_id: undefined } 
-          : tag
-      ));
-    } catch (error) {
-      console.error('Error unassigning tag:', error);
-      throw error;
-    }
-  };
 
   const openDoor = async () => {
     setDoorStatus('opening');
@@ -214,7 +160,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     <AccessControlContext.Provider
       value={{
         employees,
-        rfidTags,
         accessEvents,
         doorStatus,
         currentPeopleCount,
@@ -223,12 +168,9 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
         
         addEmployee,
         updateEmployee,
-        assignTag,
-        unassignTag,
         openDoor,
-        
+
         loadEmployees,
-        loadTags,
         loadAccessEvents
       }}
     >

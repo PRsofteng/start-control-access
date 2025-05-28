@@ -24,8 +24,16 @@ from typing import Annotated, Dict, Optional
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from requests.auth import HTTPDigestAuth  # type: ignore
-from sqlalchemy import DateTime, Integer, String, Text, create_engine, Column, ForeignKey
+from httpx import DigestAuth
+from sqlalchemy import (
+    DateTime,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    Column,
+    ForeignKey,
+)
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # ------------------------------------------------------------------
@@ -53,6 +61,7 @@ Base = declarative_base()
 # ------------------------------------------------------------------
 # ORM fragment (only the table we need: evento_acesso)
 # ------------------------------------------------------------------
+
 
 class EventoAcesso(Base):
     __tablename__ = "evento_acesso"
@@ -88,17 +97,28 @@ class DoorRequest(BaseModel):
 
 
 @app.post("/door/open", status_code=204)
-async def door_open(req: DoorRequest, db: Annotated[Session, Depends(get_session)]):
+async def door_open(
+    req: DoorRequest, db: Annotated[Session, Depends(get_session)]
+):
     """Trigger remote open via ISAPI and log the operation."""
-    auth = HTTPDigestAuth(HIK_USER, HIK_PASS)
-    url = f"http://{HIK_IP}:{HIK_PORT}/ISAPI/AccessControl/RemoteControl/door/1"
-    async with httpx.AsyncClient(auth=auth, verify=HIK_VERIFY_TLS, timeout=5) as cli:
+    auth = DigestAuth(HIK_USER, HIK_PASS)
+    url = (
+        f"http://{HIK_IP}:{HIK_PORT}/ISAPI/AccessControl/RemoteControl/door/1"
+    )
+    async with httpx.AsyncClient(
+        auth=auth, verify=HIK_VERIFY_TLS, timeout=5
+    ) as cli:
         r = await cli.put(url, content=b"open")
         if r.status_code != 200:
             raise HTTPException(502, "Hikvision did not accept command")
 
-    evt = EventoAcesso(tag_uid=0, pessoa_id=None, leitor_id="hik1", resultado="comando",
-                       motivo=req.motivo)
+    evt = EventoAcesso(
+        tag_uid=0,
+        pessoa_id=None,
+        leitor_id="hik1",
+        resultado="comando",
+        motivo=req.motivo,
+    )
     db.add(evt)
     db.commit()
     return None
@@ -139,12 +159,14 @@ async def pull_alertstream():
     if not PULL_MODE:
         return
 
-    auth = HTTPDigestAuth(HIK_USER, HIK_PASS)
+    auth = DigestAuth(HIK_USER, HIK_PASS)
     boundary = None
     url = f"http://{HIK_IP}:{HIK_PORT}/ISAPI/Event/notification/alertStream"
     while True:
         try:
-            async with httpx.AsyncClient(auth=auth, verify=HIK_VERIFY_TLS, timeout=None) as cli:
+            async with httpx.AsyncClient(
+                auth=auth, verify=HIK_VERIFY_TLS, timeout=None
+            ) as cli:
                 async with cli.stream("GET", url) as r:
                     ctype = r.headers.get("Content-Type", "")
                     if "boundary=" in ctype:
