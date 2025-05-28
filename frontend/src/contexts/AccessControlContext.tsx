@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Pessoa, Tag, pessoaService, tagService } from '../services/api';
+import { Pessoa, Tag, pessoaService, tagService, doorService } from '../services/api';
 import { DoorStatus, AccessEvent } from '../types';
 
 interface AccessControlContextType {
@@ -192,21 +192,22 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const openDoor = async () => {
-    // In a real app, you would call API
     setDoorStatus('opening');
-    
-    // Simulate door opening and closing
-    setTimeout(() => {
+    try {
+      await doorService.open({ motivo: 'manual' });
       setDoorStatus('open');
-      
+
       setTimeout(() => {
         setDoorStatus('closing');
-        
         setTimeout(() => {
           setDoorStatus('closed');
         }, 1000);
       }, 3000);
-    }, 1000);
+    } catch (error) {
+      console.error('Error opening door:', error);
+      setDoorStatus('closed');
+      throw error;
+    }
   };
 
   return (
