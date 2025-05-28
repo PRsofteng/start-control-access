@@ -51,11 +51,11 @@ PULL_MODE: bool = bool(int(os.getenv("HIK_PULL", "1")))  # 1 = pull alertStream
 PUSH_SECRET: Optional[str] = os.getenv("HIK_PUSH_SECRET")  # validate push
 
 # PostgreSQL (reuse same DSN as other service)
-DB_DSN: str = os.getenv(
-    "DB_URL",
-    "postgresql+psycopg2://PedroRangel:M1N512qwas@$@localhost:5434/doterra-db",
+DB_DSN = (
+    "postgresql+psycopg2://PedroRangel:"
+    "M1N512qwas%40%24"
+    "@localhost:5434/start-control-access-db"
 )
-
 engine = create_engine(DB_DSN, pool_size=5, max_overflow=10, echo=False)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
