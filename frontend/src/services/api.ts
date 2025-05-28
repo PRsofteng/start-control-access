@@ -27,6 +27,10 @@ export interface VerifyResponse {
   motivo: string;
 }
 
+export interface DoorOpenRequest {
+  motivo?: string;
+}
+
 // Serviços de API
 export const pessoaService = {
   criar: async (data: Omit<Pessoa, 'id' | 'criado_em'>) => {
@@ -54,5 +58,11 @@ export const tagService = {
   verificar: async (uid: number, leitor_id: string) => {
     const response = await api.post<VerifyResponse>('/verify-tag', { uid, leitor_id });
     return response.data;
+  }
+};
+
+export const doorService = {
+  open: async (data: DoorOpenRequest = {}) => {
+    await api.post('/door/open', data);
   }
 };
