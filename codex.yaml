@@ -1,0 +1,3 @@
+setup: ./.codex/setup.sh   # passo 2
+lint:  npm run lint        # passo 3
+test:  npm test

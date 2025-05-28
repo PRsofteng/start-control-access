@@ -1,0 +1,16 @@
+# ───── FastAPI stack ─────
+fastapi==0.110.3
+uvicorn[standard]==0.29.0        # includes h11, websockets
+
+# ───── HTTP client ─────
+httpx==0.27.0                    # suporta DigestAuth assíncrono
+
+# ───── Banco de dados ─────
+sqlalchemy==2.0.29
+psycopg2-binary==2.9.9           # driver PostgreSQL
+
+# ───── Autenticação digest (sincrona) ─────
+requests==2.31.0                 # traz requests.auth.HTTPDigestAuth
+
+# ───── Modelos / validação ─────
+pydantic==2.7.1
