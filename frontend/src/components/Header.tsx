@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const isAlmoxarifado = location.pathname === '/almoxarifado';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#00A0E3] to-[#1B75BC] shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <div className="flex-shrink-0 pl-4">
+          <div className="flex-shrink-0">
             <Link to="/" className="flex items-center">
               <img
                 src="https://www.startquimica.com.br/images/start-cor-fundo-transparente@2x.png"
@@ -23,16 +25,10 @@ const Header: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
             <Link
-              to="/"
+              to={isAlmoxarifado ? "/" : "/almoxarifado"}
               className="text-white hover:text-blue-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
             >
-              Controle de Acesso
-            </Link>
-            <Link
-              to="/almoxarifado"
-              className="text-white hover:text-blue-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              Almoxarifado
+              {isAlmoxarifado ? "Controle de Acesso" : "Almoxarifado"}
             </Link>
           </nav>
 
@@ -58,18 +54,11 @@ const Header: React.FC = () => {
         <div className="md:hidden bg-[#1B75BC]">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             <Link
-              to="/"
+              to={isAlmoxarifado ? "/" : "/almoxarifado"}
               className="text-white hover:bg-blue-700 block px-3 py-2 rounded-md text-base font-medium"
               onClick={() => setIsMenuOpen(false)}
             >
-              Controle de Acesso
-            </Link>
-            <Link
-              to="/almoxarifado"
-              className="text-white hover:bg-blue-700 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Almoxarifado
+              {isAlmoxarifado ? "Controle de Acesso" : "Almoxarifado"}
             </Link>
           </div>
         </div>
