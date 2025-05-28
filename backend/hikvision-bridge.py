@@ -24,8 +24,10 @@ from typing import Annotated, Dict, Optional
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from httpx import DigestAuth
+from requests.auth import HTTPDigestAuth  # type: ignore
 from sqlalchemy import (
+    Boolean,
+    Date,
     DateTime,
     Integer,
     String,
@@ -49,11 +51,11 @@ PULL_MODE: bool = bool(int(os.getenv("HIK_PULL", "1")))  # 1 = pull alertStream
 PUSH_SECRET: Optional[str] = os.getenv("HIK_PUSH_SECRET")  # validate push
 
 # PostgreSQL (reuse same DSN as other service)
-DB_DSN: str = os.getenv(
-    "DB_URL",
-    "postgresql+psycopg2://PedroRangel:M1N512qwas@$@localhost:5434/doterra-db",
+DB_DSN = (
+    "postgresql+psycopg2://PedroRangel:"
+    "M1N512qwas%40%24"
+    "@localhost:5434/start-control-access-db"
 )
-
 engine = create_engine(DB_DSN, pool_size=5, max_overflow=10, echo=False)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
@@ -75,6 +77,33 @@ class EventoAcesso(Base):
     motivo = Column(Text, nullable=True)
 
 
+class Pessoa(Base):
+    __tablename__ = "pessoa"
+
+    id = Column(String, primary_key=True)
+    tipo = Column(String, nullable=False)
+    nome = Column(String, nullable=False)
+    documento = Column(String)
+    depto = Column(String)
+    cargo = Column(String)
+    hik_user_id = Column(Integer, unique=True)
+    validade_fim = Column(Date)
+    ativo = Column(Boolean, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class TagRFID(Base):
+    __tablename__ = "tag_rfid"
+
+    uid = Column(Integer, primary_key=True)
+    pessoa_id = Column(String, ForeignKey("pessoa.id"))
+    apelido = Column(String)
+    bloqueada = Column(Boolean, default=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow)
+
+
 # ------------------------------------------------------------------
 # FastAPI
 # ------------------------------------------------------------------
@@ -90,6 +119,22 @@ def get_session() -> Session:
 
 
 # ------------------------------------------------------------------
+# Health endpoints
+# ------------------------------------------------------------------
+
+@app.get("/health/db")
+async def health_db() -> Dict[str, str]:
+    """Open and close a DB session to confirm connectivity."""
+    try:
+        with SessionLocal() as db:
+            db.execute("SELECT 1")
+    except Exception as exc:  # pragma: no cover - simple health check
+        logging.error("DB health check failed: %s", exc)
+        raise HTTPException(500, "database unavailable")
+    return {"status": "ok"}
+
+
+# ------------------------------------------------------------------
 # Door open endpoint
 # ------------------------------------------------------------------
 class DoorRequest(BaseModel):
@@ -97,17 +142,11 @@ class DoorRequest(BaseModel):
 
 
 @app.post("/door/open", status_code=204)
-async def door_open(
-    req: DoorRequest, db: Annotated[Session, Depends(get_session)]
-):
+async def door_open(req: DoorRequest, db: Annotated[Session, Depends(get_session)]):
     """Trigger remote open via ISAPI and log the operation."""
-    auth = DigestAuth(HIK_USER, HIK_PASS)
-    url = (
-        f"http://{HIK_IP}:{HIK_PORT}/ISAPI/AccessControl/RemoteControl/door/1"
-    )
-    async with httpx.AsyncClient(
-        auth=auth, verify=HIK_VERIFY_TLS, timeout=5
-    ) as cli:
+    auth = HTTPDigestAuth(HIK_USER, HIK_PASS)
+    url = f"http://{HIK_IP}:{HIK_PORT}/ISAPI/AccessControl/RemoteControl/door/1"
+    async with httpx.AsyncClient(auth=auth, verify=HIK_VERIFY_TLS, timeout=5) as cli:
         r = await cli.put(url, content=b"open")
         if r.status_code != 200:
             raise HTTPException(502, "Hikvision did not accept command")
@@ -122,6 +161,146 @@ async def door_open(
     db.add(evt)
     db.commit()
     return None
+
+
+# ------------------------------------------------------------------
+# Pessoa & Tag endpoints
+# ------------------------------------------------------------------
+
+
+class PessoaIn(BaseModel):
+    tipo: str
+    nome: str
+    documento: Optional[str] = None
+    depto: Optional[str] = None
+    cargo: Optional[str] = None
+    hik_user_id: Optional[int] = None
+    validade_fim: Optional[str] = None
+    ativo: bool = True
+
+
+class PessoaUpdate(BaseModel):
+    tipo: Optional[str] = None
+    nome: Optional[str] = None
+    documento: Optional[str] = None
+    depto: Optional[str] = None
+    cargo: Optional[str] = None
+    hik_user_id: Optional[int] = None
+    validade_fim: Optional[str] = None
+    ativo: Optional[bool] = None
+
+
+class TagIn(BaseModel):
+    uid: int
+    pessoa_id: Optional[str] = None
+    bloqueada: bool = False
+    apelido: Optional[str] = None
+
+
+class TagUpdate(BaseModel):
+    pessoa_id: Optional[str] = None
+    bloqueada: Optional[bool] = None
+    apelido: Optional[str] = None
+
+
+@app.get("/pessoa")
+def list_pessoas(db: Annotated[Session, Depends(get_session)]):
+    return db.query(Pessoa).order_by(Pessoa.nome).all()
+
+
+@app.get("/pessoa/{pid}")
+def get_pessoa(pid: str, db: Annotated[Session, Depends(get_session)]):
+    pessoa = db.get(Pessoa, pid)
+    if not pessoa:
+        raise HTTPException(404, "Pessoa not found")
+    return pessoa
+
+
+@app.post("/pessoa", status_code=201)
+def create_pessoa(data: PessoaIn, db: Annotated[Session, Depends(get_session)]):
+    pessoa = Pessoa(**data.dict())
+    db.add(pessoa)
+    db.commit()
+    db.refresh(pessoa)
+    return pessoa
+
+
+@app.patch("/pessoa/{pid}")
+def update_pessoa(
+    pid: str, data: PessoaUpdate, db: Annotated[Session, Depends(get_session)]
+):
+    pessoa = db.get(Pessoa, pid)
+    if not pessoa:
+        raise HTTPException(404, "Pessoa not found")
+    for k, v in data.dict(exclude_unset=True).items():
+        setattr(pessoa, k, v)
+    db.commit()
+    db.refresh(pessoa)
+    return pessoa
+
+
+@app.get("/tag")
+def list_tags(db: Annotated[Session, Depends(get_session)]):
+    return db.query(TagRFID).all()
+
+
+@app.get("/tag/{uid}")
+def get_tag(uid: int, db: Annotated[Session, Depends(get_session)]):
+    tag = db.get(TagRFID, uid)
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    return tag
+
+
+@app.post("/tag", status_code=201)
+def create_tag(data: TagIn, db: Annotated[Session, Depends(get_session)]):
+    tag = db.get(TagRFID, data.uid)
+    if tag:
+        for k, v in data.dict(exclude_unset=True).items():
+            setattr(tag, k, v)
+    else:
+        tag = TagRFID(**data.dict())
+        db.add(tag)
+    db.commit()
+    db.refresh(tag)
+    return tag
+
+
+@app.patch("/tag/{uid}")
+def update_tag(uid: int, data: TagUpdate, db: Annotated[Session, Depends(get_session)]):
+    tag = db.get(TagRFID, uid)
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    for k, v in data.dict(exclude_unset=True).items():
+        setattr(tag, k, v)
+    db.commit()
+    db.refresh(tag)
+    return tag
+
+
+class VerifyRequest(BaseModel):
+    uid: int
+    leitor_id: str
+
+
+class VerifyResponse(BaseModel):
+    allowed: bool
+    pessoa_id: Optional[str] = None
+    motivo: str
+
+
+@app.post("/verify-tag", response_model=VerifyResponse)
+def verify_tag(req: VerifyRequest, db: Annotated[Session, Depends(get_session)]):
+    tag = db.get(TagRFID, req.uid)
+    if not tag:
+        return VerifyResponse(allowed=False, motivo="TAG desconhecida")
+    if tag.bloqueada:
+        return VerifyResponse(
+            allowed=False, pessoa_id=tag.pessoa_id, motivo="TAG bloqueada"
+        )
+    if not tag.pessoa_id:
+        return VerifyResponse(allowed=False, motivo="TAG sem pessoa")
+    return VerifyResponse(allowed=True, pessoa_id=tag.pessoa_id, motivo="ok")
 
 
 # ------------------------------------------------------------------
@@ -159,7 +338,7 @@ async def pull_alertstream():
     if not PULL_MODE:
         return
 
-    auth = DigestAuth(HIK_USER, HIK_PASS)
+    auth = HTTPDigestAuth(HIK_USER, HIK_PASS)
     boundary = None
     url = f"http://{HIK_IP}:{HIK_PORT}/ISAPI/Event/notification/alertStream"
     while True:

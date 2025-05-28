@@ -100,23 +100,36 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const loadEmployees = async () => {
-    // In a real app, you would fetch from API
-    setEmployees(mockEmployees);
-    return Promise.resolve();
+    setIsLoading(true);
+    try {
+      const data = await pessoaService.listar();
+      setEmployees(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading employees:', err);
+      setError('Failed to load employees');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadAccessEvents = async () => {
-    // In a real app, you would fetch from API
-    const events = generateMockAccessEvents();
-    setAccessEvents(events);
-    
-    // Calculate current people count
-    const peopleInside = events.filter(
-      event => event.status === 'allowed' && !event.exitTime
-    ).length;
-    setCurrentPeopleCount(peopleInside);
-    
-    return Promise.resolve();
+    setIsLoading(true);
+    try {
+      const events = await accessEventService.listar();
+      setAccessEvents(events);
+
+      const peopleInside = events.filter(
+        event => event.status === 'allowed' && !event.exitTime
+      ).length;
+      setCurrentPeopleCount(peopleInside);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading access events:', err);
+      setError('Failed to load access events');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addEmployee = async (employee: Omit<Pessoa, 'id' | 'criado_em'>) => {
