@@ -81,6 +81,22 @@ def get_session() -> Session:
 
 
 # ------------------------------------------------------------------
+# Health endpoints
+# ------------------------------------------------------------------
+
+@app.get("/health/db")
+async def health_db() -> Dict[str, str]:
+    """Open and close a DB session to confirm connectivity."""
+    try:
+        with SessionLocal() as db:
+            db.execute("SELECT 1")
+    except Exception as exc:  # pragma: no cover - simple health check
+        logging.error("DB health check failed: %s", exc)
+        raise HTTPException(500, "database unavailable")
+    return {"status": "ok"}
+
+
+# ------------------------------------------------------------------
 # Door open endpoint
 # ------------------------------------------------------------------
 class DoorRequest(BaseModel):
