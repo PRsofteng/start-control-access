@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+<<<<<<< HEAD
+import { Pessoa, pessoaService, doorService } from '../services/api';
+=======
 import { Pessoa, Tag, pessoaService, tagService, doorService, accessEventService } from '../services/api';
+>>>>>>> origin/main
 import { DoorStatus, AccessEvent } from '../types';
 
 interface AccessControlContextType {
   employees: Pessoa[];
-  rfidTags: Tag[];
   accessEvents: AccessEvent[];
   doorStatus: DoorStatus;
   currentPeopleCount: number;
@@ -15,25 +18,75 @@ interface AccessControlContextType {
   addEmployee: (employee: Omit<Pessoa, 'id' | 'criado_em'>) => Promise<void>;
   updateEmployee: (id: string, employee: Partial<Pessoa>) => Promise<void>;
   
-  // RFID Tag functions
-  assignTag: (tagUid: string, employeeId: string) => Promise<void>;
-  unassignTag: (tagUid: string) => Promise<void>;
-  
   // Access Control functions
   openDoor: () => Promise<void>;
-  
+
   // Load functions
   loadEmployees: () => Promise<void>;
-  loadTags: () => Promise<void>;
   loadAccessEvents: () => Promise<void>;
 }
 
 const AccessControlContext = createContext<AccessControlContextType | undefined>(undefined);
 
+<<<<<<< HEAD
+// Mock data for demonstration
+const mockEmployees: Pessoa[] = [
+  {
+    id: '1',
+    tipo: 'funcionario',
+    nome: 'João Silva',
+    foto_url: 'https://picsum.photos/seed/1/64',
+    ativo: true,
+    criado_em: new Date().toISOString()
+  },
+  {
+    id: '2',
+    tipo: 'funcionario',
+    nome: 'Maria Souza',
+    foto_url: 'https://picsum.photos/seed/2/64',
+    ativo: true,
+    criado_em: new Date().toISOString()
+  },
+  {
+    id: '3',
+    tipo: 'visitante',
+    nome: 'Carlos Oliveira',
+    foto_url: 'https://picsum.photos/seed/3/64',
+    ativo: false,
+    validade_fim: new Date().toISOString(),
+    criado_em: new Date().toISOString()
+  }
+];
+
+// Helper function to generate mock access events
+const generateMockAccessEvents = (): AccessEvent[] => {
+  const events: AccessEvent[] = [];
+  const now = new Date();
+  
+  for (let i = 0; i < 20; i++) {
+    const date = new Date(now.getTime() - i * 3600000);
+    const employee = mockEmployees[Math.floor(Math.random() * mockEmployees.length)];
+    const tagUid = 1000 + i;
+
+    events.push({
+      id: `event-${i}`,
+      employeeName: employee.nome,
+      employeeId: employee.id,
+      tagUid: String(tagUid),
+      entryTime: new Date(date.getTime() - 3600000).toISOString(),
+      exitTime: i % 3 === 0 ? null : date.toISOString(),
+      status: i % 5 === 0 ? 'denied' : 'allowed',
+      reason: i % 5 === 0 ? 'Unauthorized access attempt' : null
+    });
+  }
+  
+  return events;
+};
+=======
+>>>>>>> origin/main
 
 export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [employees, setEmployees] = useState<Pessoa[]>([]);
-  const [rfidTags, setRfidTags] = useState<Tag[]>([]);
   const [accessEvents, setAccessEvents] = useState<AccessEvent[]>([]);
   const [doorStatus, setDoorStatus] = useState<DoorStatus>('closed');
   const [currentPeopleCount, setCurrentPeopleCount] = useState<number>(0);
@@ -44,7 +97,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     // Load initial data
     Promise.all([
       loadEmployees(),
-      loadTags(),
       loadAccessEvents()
     ]).then(() => {
       setIsLoading(false);
@@ -68,6 +120,8 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+<<<<<<< HEAD
+=======
   const loadTags = async () => {
     try {
       const data = await tagService.listar();
@@ -78,6 +132,7 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+>>>>>>> origin/main
   const loadAccessEvents = async () => {
     setIsLoading(true);
     try {
@@ -114,43 +169,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     ));
   };
 
-  const assignTag = async (tagUid: string, employeeId: string) => {
-    try {
-      await tagService.criar({
-        uid: parseInt(tagUid),
-        pessoa_id: employeeId,
-        bloqueada: false
-      });
-      
-      setRfidTags(tags => tags.map(tag => 
-        tag.uid === parseInt(tagUid)
-          ? { ...tag, pessoa_id: employeeId } 
-          : tag
-      ));
-    } catch (error) {
-      console.error('Error assigning tag:', error);
-      throw error;
-    }
-  };
-
-  const unassignTag = async (tagUid: string) => {
-    try {
-      await tagService.criar({
-        uid: parseInt(tagUid),
-        pessoa_id: undefined,
-        bloqueada: false
-      });
-      
-      setRfidTags(tags => tags.map(tag => 
-        tag.uid === parseInt(tagUid)
-          ? { ...tag, pessoa_id: undefined } 
-          : tag
-      ));
-    } catch (error) {
-      console.error('Error unassigning tag:', error);
-      throw error;
-    }
-  };
 
   const openDoor = async () => {
     setDoorStatus('opening');
@@ -175,7 +193,6 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
     <AccessControlContext.Provider
       value={{
         employees,
-        rfidTags,
         accessEvents,
         doorStatus,
         currentPeopleCount,
@@ -184,12 +201,9 @@ export const AccessControlProvider: React.FC<{ children: React.ReactNode }> = ({
         
         addEmployee,
         updateEmployee,
-        assignTag,
-        unassignTag,
         openDoor,
-        
+
         loadEmployees,
-        loadTags,
         loadAccessEvents
       }}
     >

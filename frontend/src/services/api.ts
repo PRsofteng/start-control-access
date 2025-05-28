@@ -9,6 +9,7 @@ export interface Pessoa {
   id: string;
   tipo: 'funcionario' | 'visitante';
   nome: string;
+  foto_url?: string;
   ativo: boolean;
   validade_fim?: string;
   criado_em: string;
